@@ -8,19 +8,30 @@ import { Icons } from "../components/ui/Icons";
 import { navigate } from "../app/router";
 import { useEnrich } from "../features/enrich/EnrichContext";
 import { getSupabaseConfig } from "../lib/supabase";
+import { getActiveMasterMeta, type MasterMeta } from "../lib/supabaseMaster";
 import { listRecentRuns, type SavedRun } from "../lib/supabaseSync";
 
 export default function DashboardPage() {
   const { master, segment, summary, loadSamples } = useEnrich();
   const [runs, setRuns] = useState<SavedRun[]>([]);
+  const [savedMaster, setSavedMaster] = useState<MasterMeta | null>(null);
   const connected = Boolean(getSupabaseConfig());
+  const masterCount = savedMaster?.rowCount ?? master?.rows.length;
+  const masterHint = savedMaster
+    ? `${savedMaster.fileName} · saved`
+    : master
+      ? master.fileName
+      : "Upload once on Enrich";
 
   useEffect(() => {
     if (!connected) return;
     void listRecentRuns()
       .then(setRuns)
       .catch(() => setRuns([]));
-  }, [connected, summary]);
+    void getActiveMasterMeta()
+      .then(setSavedMaster)
+      .catch(() => setSavedMaster(null));
+  }, [connected, summary, master]);
 
   return (
     <div className="page-stack">
@@ -37,10 +48,10 @@ export default function DashboardPage() {
       <div className="stat-grid">
         <Stat
           label="Master contacts"
-          value={master ? master.rows.length.toLocaleString() : "—"}
-          hint={master ? master.fileName : "No master loaded"}
+          value={masterCount != null ? masterCount.toLocaleString() : "—"}
+          hint={masterHint}
           icon={<Icons.database />}
-          tone={master ? "ok" : "default"}
+          tone={masterCount ? "ok" : "default"}
         />
         <Stat
           label="Segment rows"
@@ -69,21 +80,21 @@ export default function DashboardPage() {
           <CardHeader
             eyebrow="Pipeline"
             title="Enrich workspace"
-            meta="Master → segment → email match → download."
+            meta="Save master once → drop lists → fill phones."
           />
           <div className="dash-points">
             <div>
               <span>1</span>
               <p>
                 <strong>Master CSV</strong>
-                Complete member database with emails and phones.
+                Upload the full studio list once. It stays in Supabase.
               </p>
             </div>
             <div>
               <span>2</span>
               <p>
-                <strong>Segment CSV</strong>
-                Expired members, intro offers, former lists.
+                <strong>List CSV</strong>
+                Expired members, intro offers, former lists — as often as you need.
               </p>
             </div>
             <div>
@@ -95,7 +106,9 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="card-footer-row">
-            <Button onClick={() => navigate("enrich")}>Start matching</Button>
+            <Button onClick={() => navigate("enrich")}>
+              {savedMaster || master ? "Upload a list" : "Save master first"}
+            </Button>
             <Button variant="secondary" onClick={() => void loadSamples()}>
               Load dummy sample
             </Button>

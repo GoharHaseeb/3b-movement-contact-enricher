@@ -4,6 +4,7 @@ export type CsvTable = {
   rows: Record<string, string>[];
   emailColumn: string;
   phoneColumn: string | null;
+  persistedId?: string;
 };
 
 export type MatchStatus = "matched" | "email-not-found";

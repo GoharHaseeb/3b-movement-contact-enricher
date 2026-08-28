@@ -11,6 +11,7 @@ import {
   saveSupabaseConfig,
   testSupabaseConnection,
 } from "../lib/supabase";
+import schemaSql from "../../supabase/schema.sql?raw";
 
 export default function SettingsPage() {
   const envConfig = getEnvConfig();
@@ -19,7 +20,14 @@ export default function SettingsPage() {
   const [anonKey, setAnonKey] = useState(stored?.anonKey ?? envConfig?.anonKey ?? "");
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const connected = Boolean(getSupabaseConfig());
+
+  async function handleCopySchema() {
+    await navigator.clipboard.writeText(schemaSql);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 2000);
+  }
 
   async function handleTest() {
     setError(null);
@@ -96,17 +104,21 @@ export default function SettingsPage() {
         <CardHeader
           eyebrow="Setup"
           title="Run the SQL schema once"
-          meta="SQL Editor in your Supabase project → paste supabase/schema.sql"
+          meta="SQL Editor in your Supabase project → paste this schema"
         />
         <ol className="setup-list">
-          <li>Create a private Supabase project for 3B Movement.</li>
-          <li>Open SQL Editor and run <code>supabase/schema.sql</code>.</li>
-          <li>Copy Project URL and anon public key from Settings → API.</li>
-          <li>Paste them above, or put them in a local <code>.env</code> from <code>.env.example</code>.</li>
+          <li>Open the SQL Editor in the connected Supabase project.</li>
+          <li>Paste the schema (includes saved master tables) and run it once.</li>
+          <li>Come back here and use Save & test if the master tables were just added.</li>
         </ol>
+        <div className="table-actions">
+          <Button variant="secondary" onClick={() => void handleCopySchema()}>
+            {copied ? "Schema copied" : "Copy schema SQL"}
+          </Button>
+        </div>
         <p className="notice">
-          Matching still runs in the browser. Saving a run is optional and stores the enriched segment
-          rows — not a live connection to Momence. Do not commit real keys or member CSVs.
+          The studio master list is stored once in Supabase. After that you only upload lists that need
+          missing phones filled. Matching still runs in the browser. Do not commit real keys or member CSVs.
         </p>
       </Card>
     </div>

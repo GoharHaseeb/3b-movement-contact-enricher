@@ -263,8 +263,8 @@ export default function ResultsWorkspace({
           {saveState ? <p className="settings-ok table-foot">{saveState}</p> : null}
           {saveError ? <p className="form-error table-foot">{saveError}</p> : null}
           <p className="table-foot">
-            Same columns were merged. Unique columns from both files are kept. Matching runs locally.
-            Save to Supabase is optional.
+            Same columns were merged. Unique columns from both files are kept. The master list stays saved
+            for the next file. Save this enrich run if you want a history copy.
           </p>
         </div>
       </Card>

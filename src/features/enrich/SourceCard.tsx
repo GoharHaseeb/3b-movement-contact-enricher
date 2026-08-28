@@ -11,11 +11,13 @@ type SourceCardProps = {
   table: CsvTable | null;
   locked?: boolean;
   lockReason?: string;
+  persisted?: boolean;
   extraAction?: ReactNode;
   onFile: (file: File) => Promise<void>;
   onEmailColumn: (column: string) => void;
   onPhoneColumn: (column: string) => void;
   onClear?: () => void;
+  clearLabel?: string;
 };
 
 export default function SourceCard({
@@ -24,14 +26,16 @@ export default function SourceCard({
   locked = false,
   lockReason,
   extraAction,
+  persisted = false,
   onFile,
   onEmailColumn,
   onPhoneColumn,
   onClear,
+  clearLabel = "Replace",
 }: SourceCardProps) {
   const isMaster = kind === "master";
-  const title = isMaster ? "Master database" : "Segmented list";
-  const eyebrow = isMaster ? "Source" : "Input";
+  const title = isMaster ? "Master database" : "List to enrich";
+  const eyebrow = isMaster ? "Saved once" : "Upload";
 
   return (
     <Card>
@@ -40,12 +44,14 @@ export default function SourceCard({
         title={title}
         meta={
           isMaster
-            ? "Complete member file. Used as the lookup table."
-            : "Expired, intro, former, or any exported subset."
+            ? persisted
+              ? "Stored in Supabase. You do not need to upload this again."
+              : "Upload once. We keep it as the lookup table for every list."
+            : "Expired, intro, former, or any exported subset. We’ll fill missing phones from the saved master."
         }
         action={
           table ? (
-            <Badge tone="ok">Ready</Badge>
+            <Badge tone="ok">{persisted ? "Saved" : "Ready"}</Badge>
           ) : locked ? (
             <Badge tone="muted">Waiting</Badge>
           ) : (
@@ -62,11 +68,14 @@ export default function SourceCard({
             </div>
             <div className="file-copy">
               <strong>{table.fileName}</strong>
-              <span>{table.rows.length.toLocaleString()} contacts · {table.headers.length} columns</span>
+              <span>
+                {table.rows.length.toLocaleString()} contacts · {table.headers.length} columns
+                {persisted ? " · saved in Supabase" : ""}
+              </span>
             </div>
             {onClear ? (
               <Button variant="ghost" onClick={onClear}>
-                Replace
+                {clearLabel}
               </Button>
             ) : null}
           </div>
@@ -109,7 +118,11 @@ export default function SourceCard({
           label={isMaster ? "master CSV" : "segment CSV"}
           disabled={locked}
           disabledReason={lockReason}
-          hint={isMaster ? "Mindbody, Punchpass, or studio exports work." : "We’ll keep these rows and fill missing fields."}
+          hint={
+            isMaster
+              ? "Studio member export with emails and phones. Saved once."
+              : "We’ll keep these rows and fill missing numbers from the saved master."
+          }
           extraAction={extraAction}
           onFile={onFile}
         />

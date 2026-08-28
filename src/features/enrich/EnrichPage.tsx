@@ -13,6 +13,10 @@ export default function EnrichPage() {
     segment,
     summary,
     error,
+    notice,
+    hydrating,
+    replacingMaster,
+    masterPersisted,
     loadMaster,
     loadSegment,
     setMasterEmail,
@@ -23,9 +27,12 @@ export default function EnrichPage() {
     runMatch,
     resetWorkspace,
     clearSegment,
+    beginReplaceMaster,
+    cancelReplaceMaster,
   } = useEnrich();
 
   const canMatch = Boolean(master && segment);
+  const showMasterDrop = !hydrating && (!master || replacingMaster);
   const [editSources, setEditSources] = useState(true);
 
   useEffect(() => {
@@ -37,64 +44,104 @@ export default function EnrichPage() {
     <div className="page-stack">
       <PageHeader
         title="Enrich Contacts"
-        subtitle="Load a master database, drop a segmented list, then match on email."
+        subtitle={
+          masterPersisted
+            ? "Master list is saved. Upload a segment to fill missing phones."
+            : "Save the studio master once, then drop lists that need numbers filled in."
+        }
         extra={<StagePills master={Boolean(master)} segment={Boolean(segment)} results={Boolean(summary)} />}
         actions={
           <>
             <Button variant="secondary" onClick={() => void loadSamples()}>
               Load sample data
             </Button>
-            {master ? (
+            {segment || summary ? (
               <Button variant="ghost" onClick={resetWorkspace}>
-                Reset workspace
+                New list
               </Button>
             ) : null}
           </>
         }
       />
 
+      {hydrating ? <p className="settings-ok">Loading saved master from Supabase…</p> : null}
+      {notice ? <p className="settings-ok">{notice}</p> : null}
       {error ? <p className="form-error banner-error">{error}</p> : null}
 
       {summary && !editSources ? (
         <div className="source-compact">
           <div>
-            <p className="actionbar-kicker">Sources</p>
+            <p className="actionbar-kicker">{masterPersisted ? "Saved master" : "Sources"}</p>
             <p>
               <strong>{master?.fileName}</strong> ({master?.rows.length.toLocaleString()} master)
               {" · "}
-              <strong>{segment?.fileName}</strong> ({segment?.rows.length.toLocaleString()} segment)
+              <strong>{segment?.fileName}</strong> ({segment?.rows.length.toLocaleString()} list)
             </p>
           </div>
           <Button variant="secondary" onClick={() => setEditSources(true)}>
-            Edit files
+            Change list
           </Button>
         </div>
       ) : (
-        <div className="source-grid">
-          <SourceCard
-            kind="master"
-            table={master}
-            extraAction={
-              <Button variant="secondary" onClick={() => void loadSamples()}>
-                Use dummy files
-              </Button>
-            }
-            onFile={loadMaster}
-            onEmailColumn={setMasterEmail}
-            onPhoneColumn={setMasterPhone}
-            onClear={resetWorkspace}
-          />
-          <SourceCard
-            kind="segment"
-            table={segment}
-            locked={!master}
-            lockReason="Load a master CSV first."
-            onFile={loadSegment}
-            onEmailColumn={setSegmentEmail}
-            onPhoneColumn={setSegmentPhone}
-            onClear={clearSegment}
-          />
-        </div>
+        <>
+          {master && !replacingMaster ? (
+            <div className="master-saved">
+              <div className="file-row">
+                <div className="file-mark">
+                  <Icons.database />
+                </div>
+                <div className="file-copy">
+                  <strong>{master.fileName}</strong>
+                  <span>
+                    {master.rows.length.toLocaleString()} contacts saved
+                    {masterPersisted ? " in Supabase" : " in this session"}
+                    {" · email "}
+                    {master.emailColumn}
+                  </span>
+                </div>
+                <Button variant="ghost" onClick={beginReplaceMaster}>
+                  Replace master
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
+          <div className={`source-grid ${showMasterDrop ? "" : "is-single"}`.trim()}>
+            {showMasterDrop ? (
+              <SourceCard
+                kind="master"
+                table={null}
+                persisted={masterPersisted}
+                extraAction={
+                  master ? (
+                    <Button variant="secondary" onClick={cancelReplaceMaster}>
+                      Keep current master
+                    </Button>
+                  ) : (
+                    <Button variant="secondary" onClick={() => void loadSamples()}>
+                      Use dummy files
+                    </Button>
+                  )
+                }
+                onFile={loadMaster}
+                onEmailColumn={setMasterEmail}
+                onPhoneColumn={setMasterPhone}
+              />
+            ) : null}
+            <SourceCard
+              kind="segment"
+              table={segment}
+              locked={!master}
+              lockReason={hydrating ? "Loading saved master…" : "Save a master CSV first."}
+              persisted={false}
+              onFile={loadSegment}
+              onEmailColumn={setSegmentEmail}
+              onPhoneColumn={setSegmentPhone}
+              onClear={clearSegment}
+              clearLabel="Change list"
+            />
+          </div>
+        </>
       )}
 
       {!summary || editSources ? (
@@ -103,8 +150,10 @@ export default function EnrichPage() {
             <p className="actionbar-kicker">Match</p>
             <p className="actionbar-copy">
               {canMatch
-                ? `${master?.rows.length.toLocaleString()} master · ${segment?.rows.length.toLocaleString()} segment · match by email`
-                : "Both sources required before matching."}
+                ? `Ready · ${master?.rows.length.toLocaleString()} master · ${segment?.rows.length.toLocaleString()} list · match by email`
+                : master
+                  ? "Upload a list. Matching starts as soon as the file is in."
+                  : "Save a master CSV once, then upload lists to fill missing phones."}
             </p>
           </div>
           <Button icon={<Icons.enrich size={16} />} disabled={!canMatch} onClick={runMatch}>

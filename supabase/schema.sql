@@ -46,3 +46,48 @@ create policy enrich_rows_internal
   for all
   using (true)
   with check (true);
+
+-- One saved studio contact list. Upload once, then only drop segment CSVs.
+
+create table if not exists public.master_sources (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  file_name text not null,
+  email_column text not null,
+  phone_column text,
+  headers jsonb not null default '[]'::jsonb,
+  row_count integer not null default 0,
+  phone_count integer not null default 0
+);
+
+create table if not exists public.master_contacts (
+  id uuid primary key default gen_random_uuid(),
+  source_id uuid not null references public.master_sources(id) on delete cascade,
+  email text not null,
+  phone text,
+  payload jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+create unique index if not exists master_contacts_source_email_idx
+  on public.master_contacts (source_id, email);
+create index if not exists master_contacts_email_idx on public.master_contacts (email);
+
+alter table public.master_sources enable row level security;
+alter table public.master_contacts enable row level security;
+
+drop policy if exists master_sources_internal on public.master_sources;
+drop policy if exists master_contacts_internal on public.master_contacts;
+
+create policy master_sources_internal
+  on public.master_sources
+  for all
+  using (true)
+  with check (true);
+
+create policy master_contacts_internal
+  on public.master_contacts
+  for all
+  using (true)
+  with check (true);

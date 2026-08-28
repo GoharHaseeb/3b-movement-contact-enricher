@@ -45,7 +45,11 @@ export function createSupabase(config = getSupabaseConfig()): SupabaseClient | n
 
 export async function testSupabaseConnection(config: SupabaseConfig): Promise<string> {
   const client = createClient(config.url, config.anonKey);
-  const { error } = await client.from("enrich_runs").select("id").limit(1);
-  if (error) throw new Error(error.message);
-  return "Connected. enrich_runs table is reachable.";
+  const master = await client.from("master_sources").select("id").limit(1);
+  if (!master.error) return "Connected. Saved master list is ready.";
+  const runs = await client.from("enrich_runs").select("id").limit(1);
+  if (runs.error) throw new Error(master.error.message);
+  throw new Error(
+    "Connected, but master storage is missing. Run supabase/schema.sql in the SQL editor, then test again.",
+  );
 }
